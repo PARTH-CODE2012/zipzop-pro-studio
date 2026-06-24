@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ZipZop Pro - AI-powered video editor with waste detection, color grading, and relighting">
+    <meta name="theme-color" content="#0f0f12">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <title>ZipZop Pro Video Studio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #0f0f12; color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
+        header { background-color: #000; padding: 15px; text-align: center; border-bottom: 2px solid #222; }
+        header h1 { color: #ffd814; font-size: 24px; }
+        .main-container { display: flex; flex-grow: 1; flex-wrap: wrap; padding: 15px; gap: 15px; max-width: 1200px; margin: 0 auto; width: 100%; }
+        .editor-panel { background: #17171e; padding: 20px; border-radius: 8px; flex: 1; min-width: 280px; max-width: 360px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .preview-panel { background: #000; border-radius: 8px; flex: 2; min-width: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px; border: 2px dashed #333; min-height: 350px; position: relative; }
+        video { max-width: 100%; max-height: 50vh; display: none; border-radius: 4px; }
+        .upload-placeholder { text-align: center; color: #666; }
+        .upload-placeholder label { background: #ffd814; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-block; margin-top: 15px; cursor: pointer; }
+        .control-group { margin-bottom: 20px; }
+        .control-group h3 { font-size: 15px; margin-bottom: 10px; color: #ffd814; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .preset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 15px; }
+        .btn { background: #252533; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; width: 100%; text-align: center; }
+        .btn:hover, .btn.active { background: #33334d; border-color: #ffd814; color: #ffd814; }
+        .btn-ai { background: #ff4757; color: white; border: none; margin-top: 10px; padding: 10px; font-size: 13px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: all 0.3s; }
+        .btn-ai:hover:not(:disabled) { background: #ff6b81; }
+        .btn-ai:disabled { opacity: 0.6; cursor: not-allowed; }
+        .slider-box { margin-bottom: 10px; }
+        .slider-box label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; color: #ccc; }
+        .slider-box input[type="range"] { width: 100%; accent-color: #ffd814; }
+        .btn-main { background: #ffd814; color: black; border: none; width: 100%; padding: 12px; border-radius: 25px; font-size: 15px; font-weight: bold; margin-top: 10px; cursor: pointer; transition: all 0.3s; }
+        .btn-main:hover { background: #ffed4e; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        #videoInput { display: none; }
+        #downloadLink { display: none; background: #2ecc71; color: white; text-decoration: none; text-align: center; padding: 12px; border-radius: 25px; margin-top: 10px; font-weight: bold; transition: all 0.3s; }
+        #downloadLink:hover { background: #27ae60; }
+        .loading-spinner { display: none; text-align: center; margin: 10px 0; }
+        .spinner { border: 3px solid #333; border-top: 3px solid #ffd814; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .progress-bar { width: 100%; height: 4px; background: #333; border-radius: 2px; margin-top: 8px; overflow: hidden; display: none; }
+        .progress-bar.active { display: block; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #ffd814, #ff4757); width: 0%; transition: width 0.3s; }
+        @media (max-width: 768px) { .main-container { flex-direction: column-reverse; } .editor-panel { max-width: 100%; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🎮 ZipZop Pro Video Studio</h1>
+        <p style="font-size: 12px; color: #888;">AI Waste Part Detector & Cinematic Color Grader</p>
+    </header>
+
+    <main class="main-container">
+        <div class="editor-panel">
+            <div class="control-group">
+                <h3>AI Trim Engine (स्मार्ट ऑटो-कट)</h3>
+                <p style="font-size: 12px; color: #aaa; margin-bottom: 8px;">यह टूल गेमप्ले के उन हिस्सों को ऑटो-डिलीट कर देगा जहाँ कोई एक्टिविटी नहीं हो रही है।</p>
+                <button type="button" class="btn-ai" id="aiDetectBtn">🤖 Detect & Delete Waste Parts</button>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill"></div>
+                </div>
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner"></div>
+                    <p style="font-size: 12px; margin-top: 5px;">Processing...</p>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Gaming Presets (कलर ग्रेडिंग)</h3>
+                <div class="preset-grid">
+                    <button type="button" class="btn active" id="p-normal">Raw/Normal</button>
+                    <button type="button" class="btn" id="p-gta">GTA V Cinematic</button>
+                    <button type="button" class="btn" id="p-cyber">Cyberpunk Night</button>
+                    <button type="button" class="btn" id="p-hdr">Ultra HDR Mode</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Relighting Controls (मैन्युअल लाइट)</h3>
+                <div class="slider-box">
+                    <label><span>Exposure / Light</span> <span id="v-bright">100%</span></label>
+                    <input type="range" id="bright" min="50" max="200" value="100">
+                </div>
+                <div class="slider-box">
+                    <label><span>Contrast</span> <span id="v-contrast">100%</span></label>
+                    <input type="range" id="contrast" min="50" max="200" value="100">
+                </div>
+                <div class="slider-box">
+                    <label><span>Vibrancy / Saturation</span> <span id="v-saturate">100%</span></label>
+                    <input type="range" id="saturate" min="0" max="250" value="100">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Studio Status</h3>
+                <p id="statusText" style="font-size: 13px; color: #ffd814;">कृपया संपादन के लिए कोई गेमप्ले वीडियो लोड करें।</p>
+            </div>
+
+            <button type="button" class="btn-main" id="playBtn">Play / Pause Video</button>
+            <a id="downloadLink" href="#">📥 Download AI Processed Video</a>
+        </div>
+
+        <div class="preview-panel">
+            <input type="file" id="videoInput" accept="video/*">
+            
+            <div class="upload-placeholder" id="placeholder">
+                <p style="font-size: 16px;">अपनी GTA V या गेमप्ले वीडियो यहाँ लोड करें</p>
+                <label for="videoInput">Choose Video File</label>
+            </div>
+
+            <video id="mainVideo" controls loop playsinline></video>
+        </div>
+    </main>
+
+    <script>
+        // ⚠️ IMPORTANT: अपना Render बैकएंड URL यहाँ डालें जब डिप्लॉय हो
+        const BACKEND_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+            ? 'https://zipzop-pro-backend.onrender.com'  // Production (Render)
+            : 'http://localhost:5000';  // Local development
+
+        const videoInput = document.getElementById('videoInput');
+        const mainVideo = document.getElementById('mainVideo');
+        const placeholder = document.getElementById('placeholder');
+        const statusText = document.getElementById('statusText');
+        const aiDetectBtn = document.getElementById('aiDetectBtn');
+        const downloadLink = document.getElementById('downloadLink');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = progressBar.querySelector('.progress-fill');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+
+        const bright = document.getElementById('bright');
+        const contrast = document.getElementById('contrast');
+        const saturate = document.getElementById('saturate');
+
+        let videoFile = null;
+
+        // वीडियो लोड करना
+        videoInput.addEventListener('change', (e) => {
+            videoFile = e.target.files[0];
+            if (!videoFile) return;
+            mainVideo.src = URL.createObjectURL(videoFile);
+            mainVideo.style.display = 'block';
+            placeholder.style.display = 'none';
+            statusText.textContent = "✅ वीडियो लोड हो गया! अब AI बटन पर क्लिक करें।";
+            downloadLink.style.display = 'none';
+            resetControls();
+        });
+
+        // लाइव कलर ग्रेडिंग अपडेट
+        function updateVideoFilters() {
+            mainVideo.style.filter = `
+                brightness(${bright.value}%) 
+                contrast(${contrast.value}%) 
+                saturate(${saturate.value}%)
+            `;
+        }
+
+        bright.addEventListener('input', () => {
+            document.getElementById('v-bright').textContent = bright.value + '%';
+            updateVideoFilters();
+        });
+        contrast.addEventListener('input', () => {
+            document.getElementById('v-contrast').textContent = contrast.value + '%';
+            updateVideoFilters();
+        });
+        saturate.addEventListener('input', () => {
+            document.getElementById('v-saturate').textContent = saturate.value + '%';
+            updateVideoFilters();
+        });
+
+        // गेमिंग प्रीसेट्स
+        const presets = {
+            'p-normal': { b: 100, c: 100, s: 100 },
+            'p-gta':    { b: 115, c: 130, s: 180 }, 
+            'p-cyber':  { b: 90,  c: 140, s: 210 }, 
+            'p-hdr':    { b: 125, c: 150, s: 140 }  
+        };
+
+        Object.keys(presets).forEach(id => {
+            document.getElementById(id).addEventListener('click', (e) => {
+                document.querySelectorAll('.preset-grid .btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+
+                const p = presets[id];
+                bright.value = p.b;
+                contrast.value = p.c;
+                saturate.value = p.s;
+
+                document.getElementById('v-bright').textContent = p.b + '%';
+                document.getElementById('v-contrast').textContent = p.c + '%';
+                document.getElementById('v-saturate').textContent = p.s + '%';
+
+                updateVideoFilters();
+                statusText.textContent = `✨ ${e.target.textContent} फ़िल्टर लाइव लागू है!`;
+            });
+        });
+
+        // 🤖 असली बैकएंड पर वीडियो भेजने का लॉजिक
+        aiDetectBtn.addEventListener('click', async () => {
+            if (!videoFile) { 
+                alert("कृपया पहले एक वीडियो फ़ाइल अपलोड करें!"); 
+                return; 
+            }
+
+            statusText.textContent = "🚀 AI वीडियो प्रोसेस कर रहा है... कृपया रुकें...";
+            aiDetectBtn.disabled = true;
+            progressBar.classList.add('active');
+            loadingSpinner.style.display = 'block';
+            downloadLink.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('video', videoFile);
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/trim-waste`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    progressFill.style.width = '100%';
+                    statusText.textContent = "🎉 " + data.message;
+                    downloadLink.href = `${BACKEND_URL}${data.downloadUrl}`;
+                    downloadLink.style.display = 'block';
+                } else {
+                    statusText.textContent = "❌ Error: " + data.error;
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                statusText.textContent = "❌ सर्वर से कनेक्ट करने में समस्या आई। क्या बैकएंड डिप्लॉय हुआ है?";
+            } finally {
+                aiDetectBtn.disabled = false;
+                progressBar.classList.remove('active');
+                loadingSpinner.style.display = 'none';
+                progressFill.style.width = '0%';
+            }
+        });
+
+        // प्ले/पॉज बटन
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (!mainVideo.src) { 
+                alert("कृपया पहले वीडियो अपलोड करें!"); 
+                return; 
+            }
+            if (mainVideo.paused) { 
+                mainVideo.play(); 
+                document.getElementById('playBtn').textContent = '⏸ Pause Video';
+            } else { 
+                mainVideo.pause(); 
+                document.getElementById('playBtn').textContent = '▶️ Play Video';
+            }
+        });
+
+        mainVideo.addEventListener('play', () => {
+            document.getElementById('playBtn').textContent = '⏸ Pause Video';
+        });
+        mainVideo.addEventListener('pause', () => {
+            document.getElementById('playBtn').textContent = '▶️ Play Video';
+        });
+
+        // कंट्रोल्स रीसेट करें
+        function resetControls() {
+            bright.value = 100; 
+            contrast.value = 100; 
+            saturate.value = 100;
+            document.getElementById('v-bright').textContent = '100%';
+            document.getElementById('v-contrast').textContent = '100%';
+            document.getElementById('v-saturate').textContent = '100%';
+            document.querySelectorAll('.preset-grid .btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('p-normal').classList.add('active');
+            updateVideoFilters();
+        }
+
+        // PWA Service Worker रजिस्ट्रेशन
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+        }
+    </script>
+</body>
+</html>
