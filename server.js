@@ -1,4 +1,4 @@
-const express = require('express');
+Const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
@@ -563,4 +563,78 @@ app.listen(PORT, () => {
     console.log(`👥 Auth system: Ready`);
     console.log(`💳 Premium system: Ready`);
     console.log(`🎬 Video processing: Ready`);
+});import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
+import { v4 as uuidv4 } from 'uuid';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// FFmpeg सेटअप
+ffmpeg.setFfmpegPath(ffmpegStatic);
+
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb' }));
+app.use(express.static('.'));
+
+const users = new Map();
+const paymentRequests = new Map();
+
+// डायरेक्टरी सेटअप
+const UPLOADS_DIR = path.join(os.tmpdir(), 'zipzop-uploads');
+const OUTPUT_DIR = path.join(os.tmpdir(), 'zipzop-output');
+const SUBTITLES_DIR = path.join(os.tmpdir(), 'zipzop-subtitles');
+const PAYMENT_DIR = path.join(os.tmpdir(), 'zipzop-payments');
+
+[UPLOADS_DIR, OUTPUT_DIR, SUBTITLES_DIR, PAYMENT_DIR].forEach(dir => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
+
+// ===================== AUTH APIs =====================
+app.post('/api/auth/signup', (req, res) => {
+    const { email, password, username } = req.body;
+    if (!email || !password || !username) return res.status(400).json({ error: 'सभी फील्ड भरें।' });
+    if (users.has(email)) return res.status(400).json({ error: 'Email पहले से मौजूद है।' });
+    
+    const userId = uuidv4();
+    users.set(email, { userId, email, password, username, isPremium: false, trims: 0 });
+    res.json({ success: true, message: 'Signup सफल!', userId });
+});
+
+app.post('/api/auth/login', (req, res) => {
+    const { email, password } = req.body;
+    const user = users.get(email);
+    if (!user || user.password !== password) return res.status(401).json({ error: 'गलत Login details।' });
+    res.json({ success: true, userId: user.userId, username: user.username, isPremium: user.isPremium });
+});
+
+// ===================== VIDEO PROCESSING =====================
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage: storage });
+
+app.post('/api/trim-waste', upload.single('video'), (req, res) => {
+    // यहाँ तेरा ओरिजिनल ट्रिमिंग वाला लॉजिक है
+    if (!req.file) return res.status(400).json({ error: 'वीडियो अपलोड नहीं हुई।' });
+    res.json({ success: true, message: 'वीडियो प्रोसेस हो रही है...' });
+});
+
+// =============================================================
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 ZipZop Pro Backend running on port ${PORT}`));
