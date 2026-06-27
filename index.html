@@ -1,1 +1,484 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ZipZop Pro - AI-powered video editor with waste detection, color grading, and relighting">
+    <meta name="theme-color" content="#0f0f12">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <title>ZipZop Pro Video Studio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #0f0f12; color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
+        header { background-color: #000; padding: 15px; text-align: center; border-bottom: 2px solid #222; }
+        header h1 { color: #ffd814; font-size: 24px; }
+        .main-container { display: flex; flex-grow: 1; flex-wrap: wrap; padding: 15px; gap: 15px; max-width: 1400px; margin: 0 auto; width: 100%; }
+        .editor-panel { background: #17171e; padding: 20px; border-radius: 8px; flex: 1; min-width: 280px; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow-y: auto; max-height: 90vh; }
+        .preview-panel { background: #000; border-radius: 8px; flex: 2; min-width: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px; border: 2px dashed #333; min-height: 350px; position: relative; }
+        video { max-width: 100%; max-height: 50vh; display: none; border-radius: 4px; }
+        .upload-placeholder { text-align: center; color: #666; }
+        .upload-placeholder label { background: #ffd814; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: inline-block; margin-top: 15px; cursor: pointer; }
+        .control-group { margin-bottom: 20px; }
+        .control-group h3 { font-size: 15px; margin-bottom: 10px; color: #ffd814; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .preset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 15px; }
+        .btn { background: #252533; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; width: 100%; text-align: center; transition: all 0.3s; }
+        .btn:hover, .btn.active { background: #33334d; border-color: #ffd814; color: #ffd814; }
+        .btn-ai { background: #ff4757; color: white; border: none; margin-top: 10px; padding: 10px; font-size: 13px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: all 0.3s; }
+        .btn-ai:hover:not(:disabled) { background: #ff6b81; }
+        .btn-ai:disabled { opacity: 0.6; cursor: not-allowed; }
+        .slider-box { margin-bottom: 10px; }
+        .slider-box label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; color: #ccc; }
+        .slider-box input[type="range"] { width: 100%; accent-color: #ffd814; }
+        .btn-main { background: #ffd814; color: black; border: none; width: 100%; padding: 12px; border-radius: 25px; font-size: 15px; font-weight: bold; margin-top: 10px; cursor: pointer; transition: all 0.3s; }
+        .btn-main:hover { background: #ffed4e; }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+        #videoInput { display: none; }
+        #downloadLink { display: none; background: #2ecc71; color: white; text-decoration: none; text-align: center; padding: 12px; border-radius: 25px; margin-top: 10px; font-weight: bold; transition: all 0.3s; width: 100%; }
+        #downloadLink:hover { background: #27ae60; }
+        .loading-spinner { display: none; text-align: center; margin: 10px 0; }
+        .spinner { border: 3px solid #333; border-top: 3px solid #ffd814; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .progress-bar { width: 100%; height: 4px; background: #333; border-radius: 2px; margin-top: 8px; overflow: hidden; display: none; }
+        .progress-bar.active { display: block; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #ffd814, #ff4757); width: 0%; transition: width 0.3s; }
+        .input-group { margin-bottom: 10px; }
+        .input-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 3px; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; background: #252533; border: 1px solid #444; color: #fff; border-radius: 4px; font-size: 12px; }
+        .input-group textarea { resize: vertical; min-height: 50px; }
+        .caption-item { background: #252533; padding: 8px; margin: 5px 0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+        .caption-item button { background: #ff4757; border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #333; }
+        .tab-btn { background: none; border: none; color: #aaa; padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.3s; }
+        .tab-btn.active { color: #ffd814; border-bottom-color: #ffd814; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .style-preview { display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+        .neon { color: #00FF00; border: 1px solid #FF00FF; }
+        .boldyellow { color: #FFFF00; border: 1px solid #000; font-weight: bold; }
+        .whiteborder { color: #FFF; border: 2px solid #000; }
+        .cyberpunk { color: #FF00FF; border: 1px solid #00FFFF; }
+        .classic { color: #FFF; border: 1px solid #000; }
+        @media (max-width: 768px) { .main-container { flex-direction: column-reverse; } .editor-panel { max-width: 100%; } }
+    </style>
+</head>
+<body>
 
+    <header>
+        <h1>🎮 ZipZop Pro Video Studio</h1>
+        <p style="font-size: 12px; color: #888;">AI Waste Detector, Color Grader, Caption Creator & Relighter</p>
+    </header>
+
+    <main class="main-container">
+        <div class="editor-panel">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="trim">✂️ Trim</button>
+                <button class="tab-btn" data-tab="captions">📝 Captions</button>
+                <button class="tab-btn" data-tab="color">🎨 Colors</button>
+            </div>
+
+            <!-- Trim Tab -->
+            <div class="tab-content active" id="trim-tab">
+                <div class="control-group">
+                    <h3>Video Trimming (कस्टम ट्रिम)</h3>
+                    <p style="font-size: 12px; color: #aaa; margin-bottom: 8px;">शुरुआत का समय और अवधि सेट करें।</p>
+                    
+                    <div class="input-group">
+                        <label>Start Time (HH:MM:SS)</label>
+                        <input type="text" id="trimStartTime" value="00:00:00" placeholder="00:00:00">
+                    </div>
+                    <div class="input-group">
+                        <label>Duration (seconds) - Leave empty for full video</label>
+                        <input type="number" id="trimDuration" placeholder="30" min="1">
+                    </div>
+                    
+                    <button type="button" class="btn-ai" id="trimBtn">✂️ Trim Video</button>
+                    <div class="progress-bar" id="trimProgressBar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <div class="loading-spinner" id="trimLoadingSpinner">
+                        <div class="spinner"></div>
+                        <p style="font-size: 12px; margin-top: 5px;">Trimming...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Captions Tab -->
+            <div class="tab-content" id="captions-tab">
+                <div class="control-group">
+                    <h3>🎬 Premium Auto-Captions</h3>
+                    
+                    <div class="input-group">
+                        <label>Caption Text</label>
+                        <textarea id="captionText" placeholder="Enter caption text..."></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Start Time (HH:MM:SS)</label>
+                        <input type="text" id="captionStartTime" value="00:00:00" placeholder="00:00:00">
+                    </div>
+
+                    <div class="input-group">
+                        <label>End Time (HH:MM:SS)</label>
+                        <input type="text" id="captionEndTime" value="00:00:05" placeholder="00:00:05">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Caption Style</label>
+                        <select id="captionStyle">
+                            <option value="classic">Classic - <span class="style-preview classic">White+Black</span></option>
+                            <option value="boldyellow">Bold Yellow - <span class="style-preview boldyellow">YELLOW</span></option>
+                            <option value="whiteborder">White Border - <span class="style-preview whiteborder">THICK</span></option>
+                            <option value="neon">Neon - <span class="style-preview neon">GLOW</span></option>
+                            <option value="cyberpunk">Cyberpunk - <span class="style-preview cyberpunk">CYBER</span></option>
+                        </select>
+                    </div>
+
+                    <button type="button" class="btn" id="addCaptionBtn">➕ Add Caption</button>
+                    
+                    <div id="captionsList" style="margin-top: 10px; max-height: 150px; overflow-y: auto;">
+                        <p style="font-size: 12px; color: #888;">No captions added yet</p>
+                    </div>
+
+                    <button type="button" class="btn-ai" id="applyCaptionsBtn" style="margin-top: 10px; display: none;">🎬 Apply Captions to Video</button>
+                    <div class="progress-bar" id="captionProgressBar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <div class="loading-spinner" id="captionLoadingSpinner">
+                        <div class="spinner"></div>
+                        <p style="font-size: 12px; margin-top: 5px;">Adding captions...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Tab -->
+            <div class="tab-content" id="color-tab">
+                <div class="control-group">
+                    <h3>Gaming Presets (कलर ग्रेडिंग)</h3>
+                    <div class="preset-grid">
+                        <button type="button" class="btn active" id="p-normal">Raw/Normal</button>
+                        <button type="button" class="btn" id="p-gta">GTA V Cinematic</button>
+                        <button type="button" class="btn" id="p-cyber">Cyberpunk Night</button>
+                        <button type="button" class="btn" id="p-hdr">Ultra HDR Mode</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h3>Relighting Controls (मैन्युअल लाइट)</h3>
+                    <div class="slider-box">
+                        <label><span>Exposure / Light</span> <span id="v-bright">100%</span></label>
+                        <input type="range" id="bright" min="50" max="200" value="100">
+                    </div>
+                    <div class="slider-box">
+                        <label><span>Contrast</span> <span id="v-contrast">100%</span></label>
+                        <input type="range" id="contrast" min="50" max="200" value="100">
+                    </div>
+                    <div class="slider-box">
+                        <label><span>Vibrancy / Saturation</span> <span id="v-saturate">100%</span></label>
+                        <input type="range" id="saturate" min="0" max="250" value="100">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Studio Status</h3>
+                <p id="statusText" style="font-size: 13px; color: #ffd814;">कृपया संपादन के लिए कोई गेमप्ले वीडियो लोड करें।</p>
+            </div>
+
+            <button type="button" class="btn-main" id="playBtn">Play / Pause Video</button>
+            <a id="downloadLink" href="#">⬇️ Download Video</a>
+        </div>
+
+        <div class="preview-panel">
+            <input type="file" id="videoInput" accept="video/*">
+            
+            <div class="upload-placeholder" id="placeholder">
+                <p style="font-size: 16px;">अपनी GTA V या गेमप्ले वीडियो यहाँ लोड करें</p>
+                <label for="videoInput">Choose Video File</label>
+            </div>
+
+            <video id="mainVideo" controls loop playsinline></video>
+        </div>
+    </main>
+
+    <script>
+        const BACKEND_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+            ? window.location.origin  // Use same domain on production
+            : 'http://localhost:5000';
+
+        const videoInput = document.getElementById('videoInput');
+        const mainVideo = document.getElementById('mainVideo');
+        const placeholder = document.getElementById('placeholder');
+        const statusText = document.getElementById('statusText');
+        const playBtn = document.getElementById('playBtn');
+        const downloadLink = document.getElementById('downloadLink');
+
+        const bright = document.getElementById('bright');
+        const contrast = document.getElementById('contrast');
+        const saturate = document.getElementById('saturate');
+
+        const trimBtn = document.getElementById('trimBtn');
+        const trimStartTime = document.getElementById('trimStartTime');
+        const trimDuration = document.getElementById('trimDuration');
+        const trimProgressBar = document.getElementById('trimProgressBar');
+        const trimLoadingSpinner = document.getElementById('trimLoadingSpinner');
+        const trimProgressFill = trimProgressBar.querySelector('.progress-fill');
+
+        const captionText = document.getElementById('captionText');
+        const captionStartTime = document.getElementById('captionStartTime');
+        const captionEndTime = document.getElementById('captionEndTime');
+        const captionStyle = document.getElementById('captionStyle');
+        const addCaptionBtn = document.getElementById('addCaptionBtn');
+        const applyCaptionsBtn = document.getElementById('applyCaptionsBtn');
+        const captionsList = document.getElementById('captionsList');
+        const captionProgressBar = document.getElementById('captionProgressBar');
+        const captionLoadingSpinner = document.getElementById('captionLoadingSpinner');
+        const captionProgressFill = captionProgressBar.querySelector('.progress-fill');
+
+        let videoFile = null;
+        let captions = [];
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.getAttribute('data-tab');
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(tabName + '-tab').classList.add('active');
+            });
+        });
+
+        // Load video
+        videoInput.addEventListener('change', (e) => {
+            videoFile = e.target.files[0];
+            if (!videoFile) return;
+            mainVideo.src = URL.createObjectURL(videoFile);
+            mainVideo.style.display = 'block';
+            placeholder.style.display = 'none';
+            statusText.textContent = "✅ वीडियो लोड हो गया! अब edit करें।";
+            downloadLink.style.display = 'none';
+            resetControls();
+        });
+
+        // Trim video
+        trimBtn.addEventListener('click', async () => {
+            if (!videoFile) {
+                alert("कृपया पहले वीडियो लोड करें!");
+                return;
+            }
+
+            statusText.textContent = "🚀 वीडियो ट्रिम हो रहा है...";
+            trimBtn.disabled = true;
+            trimProgressBar.classList.add('active');
+            trimLoadingSpinner.style.display = 'block';
+            downloadLink.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('video', videoFile);
+            formData.append('startTime', trimStartTime.value);
+            formData.append('duration', trimDuration.value || '');
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/trim-waste`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    trimProgressFill.style.width = '100%';
+                    statusText.textContent = "🎉 " + data.message;
+                    downloadLink.href = `${BACKEND_URL}${data.downloadUrl}`;
+                    downloadLink.style.display = 'block';
+                } else {
+                    statusText.textContent = "❌ Error: " + data.error;
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                statusText.textContent = "❌ सर्वर से कनेक्ट करने में समस्या आई।";
+            } finally {
+                trimBtn.disabled = false;
+                trimProgressBar.classList.remove('active');
+                trimLoadingSpinner.style.display = 'none';
+                trimProgressFill.style.width = '0%';
+            }
+        });
+
+        // Add caption
+        addCaptionBtn.addEventListener('click', () => {
+            const text = captionText.value.trim();
+            const startTime = captionStartTime.value;
+            const endTime = captionEndTime.value;
+
+            if (!text) {
+                alert('कृपया कैप्शन टेक्स्ट डालें!');
+                return;
+            }
+
+            captions.push({
+                text: text,
+                startTime: startTime,
+                endTime: endTime
+            });
+
+            captionText.value = '';
+            renderCaptions();
+        });
+
+        // Render captions list
+        function renderCaptions() {
+            if (captions.length === 0) {
+                captionsList.innerHTML = '<p style="font-size: 12px; color: #888;">No captions added yet</p>';
+                applyCaptionsBtn.style.display = 'none';
+                return;
+            }
+
+            applyCaptionsBtn.style.display = 'block';
+            captionsList.innerHTML = captions.map((cap, i) => `
+                <div class="caption-item">
+                    <span>${cap.startTime} - ${cap.endTime}: "${cap.text.substring(0, 20)}..."</span>
+                    <button onclick="removeCaption(${i})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        window.removeCaption = (index) => {
+            captions.splice(index, 1);
+            renderCaptions();
+        };
+
+        // Apply captions to video
+        applyCaptionsBtn.addEventListener('click', async () => {
+            if (!videoFile) {
+                alert("कृपया पहले वीडियो लोड करें!");
+                return;
+            }
+
+            statusText.textContent = "🎬 कैप्शन जोड़े जा रहे हैं...";
+            applyCaptionsBtn.disabled = true;
+            captionProgressBar.classList.add('active');
+            captionLoadingSpinner.style.display = 'block';
+            downloadLink.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('video', videoFile);
+            formData.append('captions', JSON.stringify(captions));
+            formData.append('captionStyle', captionStyle.value);
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/add-captions`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    captionProgressFill.style.width = '100%';
+                    statusText.textContent = "🎉 " + data.message;
+                    downloadLink.href = `${BACKEND_URL}${data.downloadUrl}`;
+                    downloadLink.style.display = 'block';
+                } else {
+                    statusText.textContent = "❌ Error: " + data.error;
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                statusText.textContent = "❌ कैप्शन प्रोसेसिंग में एरर।";
+            } finally {
+                applyCaptionsBtn.disabled = false;
+                captionProgressBar.classList.remove('active');
+                captionLoadingSpinner.style.display = 'none';
+                captionProgressFill.style.width = '0%';
+            }
+        });
+
+        // Live color grading
+        function updateVideoFilters() {
+            mainVideo.style.filter = `
+                brightness(${bright.value}%) 
+                contrast(${contrast.value}%) 
+                saturate(${saturate.value}%)
+            `;
+        }
+
+        bright.addEventListener('input', () => {
+            document.getElementById('v-bright').textContent = bright.value + '%';
+            updateVideoFilters();
+        });
+        contrast.addEventListener('input', () => {
+            document.getElementById('v-contrast').textContent = contrast.value + '%';
+            updateVideoFilters();
+        });
+        saturate.addEventListener('input', () => {
+            document.getElementById('v-saturate').textContent = saturate.value + '%';
+            updateVideoFilters();
+        });
+
+        // Gaming Presets
+        const presets = {
+            'p-normal': { b: 100, c: 100, s: 100 },
+            'p-gta':    { b: 115, c: 130, s: 180 }, 
+            'p-cyber':  { b: 90,  c: 140, s: 210 }, 
+            'p-hdr':    { b: 125, c: 150, s: 140 }  
+        };
+
+        Object.keys(presets).forEach(id => {
+            document.getElementById(id).addEventListener('click', (e) => {
+                document.querySelectorAll('.preset-grid .btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+
+                const p = presets[id];
+                bright.value = p.b;
+                contrast.value = p.c;
+                saturate.value = p.s;
+
+                document.getElementById('v-bright').textContent = p.b + '%';
+                document.getElementById('v-contrast').textContent = p.c + '%';
+                document.getElementById('v-saturate').textContent = p.s + '%';
+
+                updateVideoFilters();
+                statusText.textContent = `✨ ${e.target.textContent} फ़िल्टर लाइव लागू है!`;
+            });
+        });
+
+        // Play/Pause
+        playBtn.addEventListener('click', () => {
+            if (!mainVideo.src) { 
+                alert("कृपया पहले वीडियो अपलोड करें!"); 
+                return; 
+            }
+            if (mainVideo.paused) { 
+                mainVideo.play(); 
+                playBtn.textContent = '⏸ Pause Video';
+            } else { 
+                mainVideo.pause(); 
+                playBtn.textContent = '▶️ Play Video';
+            }
+        });
+
+        mainVideo.addEventListener('play', () => { playBtn.textContent = '⏸ Pause Video'; });
+        mainVideo.addEventListener('pause', () => { playBtn.textContent = '▶️ Play Video'; });
+
+        function resetControls() {
+            bright.value = 100; contrast.value = 100; saturate.value = 100;
+            document.getElementById('v-bright').textContent = '100%';
+            document.getElementById('v-contrast').textContent = '100%';
+            document.getElementById('v-saturate').textContent = '100%';
+            document.querySelectorAll('.preset-grid .btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('p-normal').classList.add('active');
+            updateVideoFilters();
+        }
+
+        // PWA Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+        }
+    </script>
+</body>
+  </html>
