@@ -1,12 +1,17 @@
-const express = require('express');
-const cors = require('cors');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
+import { v4 as uuidv4 } from 'uuid';
+import { fileURLToPath } from 'url';
 
+// ES Modules में __dirname ऐसे मिलता है
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // FFmpeg का पाथ सेट करें
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
@@ -17,9 +22,9 @@ app.use(express.urlencoded({ limit: '50mb' }));
 app.use(express.static('.')); // Serve static files
 
 // सिस्टम टेम्प फोल्डर का उपयोग करें (Render/Vercel पर काम करता है)
-const UPLOADS_DIR = path.join(os.tmpdir(), 'zipzop-uploads');
-const OUTPUT_DIR = path.join(os.tmpdir(), 'zipzop-output');
-const SUBTITLES_DIR = path.join(os.tmpdir(), 'zipzop-subtitles');
+import UPLOADS_DIR = path.join(os.tmpdir(), 'zipzop-uploads');
+import OUTPUT_DIR = path.join(os.tmpdir(), 'zipzop-output');
+import SUBTITLES_DIR = path.join(os.tmpdir(), 'zipzop-subtitles');
 
 // डायनामिकली डायरेक्टरी बनाने की कोशिश करें
 function ensureDirExists(dir) {
@@ -37,7 +42,7 @@ ensureDirExists(OUTPUT_DIR);
 ensureDirExists(SUBTITLES_DIR);
 
 // मल्टीपार्ट फाइल अपलोड सेटिंग्स
-const storage = multer.diskStorage({
+import storage = multer.diskStorage({
     destination: (req, file, cb) => {
         ensureDirExists(UPLOADS_DIR);
         cb(null, UPLOADS_DIR);
@@ -46,13 +51,13 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + path.extname(file.originalname));
     }
 });
-const upload = multer({ 
+import upload = multer({ 
     storage: storage,
     limits: { fileSize: 500 * 1024 * 1024 } // 500MB limit
 });
 
 // Caption Styles डेटा
-const captionStyles = {
+import captionStyles = {
     neon: {
         color: '0x00FF00@1',  // Bright green
         bordercolor: '0xFF00FF@1',  // Magenta
@@ -116,10 +121,10 @@ app.get('/api/caption-styles', (req, res) => {
 
 // समय को सेकंड में कन्वर्ट करें (HH:MM:SS.SSS फॉर्मेट से)
 function timeToSeconds(timeStr) {
-    const parts = timeStr.split(':');
-    const hours = parseInt(parts[0]) || 0;
-    const minutes = parseInt(parts[1]) || 0;
-    const seconds = parseFloat(parts[2]) || 0;
+    import parts = timeStr.split(':');
+     hours = parseInt(parts[0]) || 0;
+    import minutes = parseInt(parts[1]) || 0;
+    import seconds = parseFloat(parts[2]) || 0;
     return hours * 3600 + minutes * 60 + seconds;
 }
 
@@ -129,11 +134,11 @@ app.post('/api/trim-waste', upload.single('video'), (req, res) => {
         return res.status(400).json({ error: 'कृपया एक वीडियो फ़ाइल अपलोड करें।' });
     }
 
-    const inputPath = req.file.path;
-    const startTime = req.body.startTime || '00:00:00';  // शुरुआत का समय
-    const duration = req.body.duration ? parseInt(req.body.duration) : null;  // अवधि (सेकंड में)
-    const outputFilename = 'trimmed_' + Date.now() + '.mp4';
-    const outputPath = path.join(OUTPUT_DIR, outputFilename);
+    import inputPath = req.file.path;
+    import startTime = req.body.startTime || '00:00:00';  // शुरुआत का समय
+    import duration = req.body.duration ? parseInt(req.body.duration) : null;  // अवधि (सेकंड में)
+    import outputFilename = 'trimmed_' + Date.now() + '.mp4';
+    import outputPath = path.join(OUTPUT_DIR, outputFilename);
 
     console.log('Processing video:', inputPath);
     console.log('Start time:', startTime);
@@ -188,11 +193,11 @@ app.post('/api/add-captions', upload.single('video'), (req, res) => {
         return res.status(400).json({ error: 'कृपया एक वीडियो फ़ाइल अपलोड करें।' });
     }
 
-    const inputPath = req.file.path;
-    const captions = JSON.parse(req.body.captions || '[]');
-    const captionStyle = req.body.captionStyle || 'classic';
-    const outputFilename = 'captioned_' + Date.now() + '.mp4';
-    const outputPath = path.join(OUTPUT_DIR, outputFilename);
+    import inputPath = req.file.path;
+    import captions = JSON.parse(req.body.captions || '[]');
+    import captionStyle = req.body.captionStyle || 'classic';
+    import outputFilename = 'captioned_' + Date.now() + '.mp4';
+    import outputPath = path.join(OUTPUT_DIR, outputFilename);
 
     console.log('Adding captions to video:', inputPath);
     console.log('Caption style:', captionStyle);
@@ -204,22 +209,23 @@ app.post('/api/add-captions', upload.single('video'), (req, res) => {
 
     // Caption text फाइलें बनाएं
     captions.forEach((caption, index) => {
-        const captionFile = path.join(SUBTITLES_DIR, `caption_${index}.txt`);
+        
+    import captionFile = path.join(SUBTITLES_DIR, `caption_${index}.txt`);
         fs.writeFileSync(captionFile, caption.text);
     });
 
-    const style = captionStyles[captionStyle] || captionStyles.classic;
-    const fontfile = style.fontfile || '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
-    const fontsize = style.fontsize;
-    const borderw = style.borderw;
-    const color = style.color;
-    const bordercolor = style.bordercolor;
+    import style = captionStyles[captionStyle] || captionStyles.classic;
+    import fontfile = style.fontfile || '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+    import fontsize = style.fontsize;
+    import borderw = style.borderw;
+    import color = style.color;
+    import bordercolor = style.bordercolor;
 
     // सभी drawtext filters बनाएं
     let filterComplex = '[0:v]';
     captions.forEach((caption, index) => {
-        const startSecs = timeToSeconds(caption.startTime);
-        const endSecs = timeToSeconds(caption.endTime);
+        import startSecs = timeToSeconds(caption.startTime);
+        import endSecs = timeToSeconds(caption.endTime);
         
         filterComplex += `drawtext=textfile='${path.join(SUBTITLES_DIR, `caption_${index}.txt`)}':x=(w-text_w)/2:y=h-80:fontfile='${fontfile}':fontsize=${fontsize}:fontcolor=${color}:bordercolor=${bordercolor}:borderw=${borderw}:enable='between(t\,${startSecs}\,${endSecs})'`;
         
@@ -244,7 +250,7 @@ app.post('/api/add-captions', upload.single('video'), (req, res) => {
             // Cleanup caption files
             captions.forEach((_, index) => {
                 try {
-                    const captionFile = path.join(SUBTITLES_DIR, `caption_${index}.txt`);
+                    import captionFile = path.join(SUBTITLES_DIR, `caption_${index}.txt`);
                     if (fs.existsSync(captionFile)) {
                         fs.unlinkSync(captionFile);
                     }
@@ -285,7 +291,7 @@ app.post('/api/add-captions', upload.single('video'), (req, res) => {
 
 // फाइल डाउनलोड एंडपॉइंट
 app.get('/download/:filename', (req, res) => {
-    const filePath = path.join(OUTPUT_DIR, req.params.filename);
+    import filePath = path.join(OUTPUT_DIR, req.params.filename);
     
     // सुरक्षा: सिर्फ हमारे फोल्डर से फाइल डाउनलोड करने दें
     if (!filePath.startsWith(OUTPUT_DIR)) {
@@ -318,7 +324,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const PORT = process.env.PORT || 5000;
+import PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 ZipZop Pro Backend running on port ${PORT}`);
     console.log(`📁 Upload dir: ${UPLOADS_DIR}`);
