@@ -205,7 +205,7 @@
 
     <script>
         const BACKEND_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
-            ? window.location.origin  
+            ? window.location.origin  // Use same domain on production
             : 'http://localhost:5000';
 
         const videoInput = document.getElementById('videoInput');
@@ -240,6 +240,7 @@
         let videoFile = null;
         let captions = [];
 
+        // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const tabName = btn.getAttribute('data-tab');
@@ -250,6 +251,7 @@
             });
         });
 
+        // Load video
         videoInput.addEventListener('change', (e) => {
             videoFile = e.target.files[0];
             if (!videoFile) return;
@@ -261,6 +263,7 @@
             resetControls();
         });
 
+        // Trim video
         trimBtn.addEventListener('click', async () => {
             if (!videoFile) {
                 alert("कृपया पहले वीडियो लोड करें!");
@@ -306,6 +309,7 @@
             }
         });
 
+        // Add caption
         addCaptionBtn.addEventListener('click', () => {
             const text = captionText.value.trim();
             const startTime = captionStartTime.value;
@@ -326,6 +330,7 @@
             renderCaptions();
         });
 
+        // Render captions list
         function renderCaptions() {
             if (captions.length === 0) {
                 captionsList.innerHTML = '<p style="font-size: 12px; color: #888;">No captions added yet</p>';
@@ -347,6 +352,7 @@
             renderCaptions();
         };
 
+        // Apply captions to video
         applyCaptionsBtn.addEventListener('click', async () => {
             if (!videoFile) {
                 alert("कृपया पहले वीडियो लोड करें!");
@@ -392,6 +398,7 @@
             }
         });
 
+        // Live color grading
         function updateVideoFilters() {
             mainVideo.style.filter = `
                 brightness(${bright.value}%) 
@@ -413,6 +420,7 @@
             updateVideoFilters();
         });
 
+        // Gaming Presets
         const presets = {
             'p-normal': { b: 100, c: 100, s: 100 },
             'p-gta':    { b: 115, c: 130, s: 180 }, 
@@ -439,6 +447,7 @@
             });
         });
 
+        // Play/Pause
         playBtn.addEventListener('click', () => {
             if (!mainVideo.src) { 
                 alert("कृपया पहले वीडियो अपलोड करें!"); 
@@ -466,6 +475,7 @@
             updateVideoFilters();
         }
 
+        // PWA Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
         }
